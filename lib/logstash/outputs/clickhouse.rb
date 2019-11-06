@@ -47,6 +47,10 @@ class LogStash::Outputs::ClickHouse < LogStash::Outputs::Base
 
   config :host_resolve_ttl_sec, :validate => :number, :default => 120
 
+  config :skip_unknown, :validate => :number, :default => 1, :inclusion => 0..1
+
+  config :ignore_record_on_empty_fieldname, :validate => :string, :default => ""
+
   def print_plugin_info()
     @@plugins = Gem::Specification.find_all{|spec| spec.name =~ /logstash-output-clickhouse/ }
     @plugin_name = @@plugins[0].name
@@ -73,7 +77,7 @@ class LogStash::Outputs::ClickHouse < LogStash::Outputs::Base
     @request_tokens = SizedQueue.new(@pool_max)
     @pool_max.times {|t| @request_tokens << true }
     @requests = Array.new
-    @http_query = "/?query=INSERT%20INTO%20#{table}%20FORMAT%20JSONEachRow"
+    @http_query = "/?date_time_input_format=best_effort&input_format_skip_unknown_fields=#{skip_unknown}&query=INSERT%20INTO%20#{table}%20FORMAT%20JSONEachRow"
 
     @hostnames_pool =
       parse_http_hosts(http_hosts,
@@ -151,7 +155,10 @@ class LogStash::Outputs::ClickHouse < LogStash::Outputs::Base
     documents = ""  #this is the string of hashes that we push to Fusion as documents
 
     events.each do |event|
-        documents << LogStash::Json.dump( mutate( event.to_hash() ) ) << "\n"
+        event_hash = event.to_hash()
+        next if @ignore_record_on_empty_fieldname != "" and event_hash[ignore_record_on_empty_fieldname] == ""
+
+        documents << LogStash::Json.dump( mutate( event_hash ) ) << "\n"
     end
 
     hosts = get_host_addresses()
