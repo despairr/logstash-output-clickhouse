@@ -156,7 +156,7 @@ class LogStash::Outputs::ClickHouse < LogStash::Outputs::Base
 
     events.each do |event|
         event_hash = event.to_hash()
-        next if @ignore_record_on_empty_fieldname != "" and event_hash[ignore_record_on_empty_fieldname] == ""
+        next if @ignore_record_on_empty_fieldname != "" and event_hash[@ignore_record_on_empty_fieldname] == ""
 
         documents << LogStash::Json.dump( mutate( event_hash ) ) << "\n"
     end
